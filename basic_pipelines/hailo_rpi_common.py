@@ -84,6 +84,7 @@ def get_default_parser():
         Defaults to /dev/video0"
     )
     parser.add_argument("--use-frame", "-u", action="store_true", help="Use frame from the callback function")
+    parser.add_argument("--show-video", "-s", action="store_true", help="show video?")
     parser.add_argument("--show-fps", "-f", action="store_true", help="Print FPS on sink")
     parser.add_argument(
         "--disable-sync", action="store_true",
@@ -100,6 +101,9 @@ def get_source_type(input_source):
     # return values can be "file", "mipi" or "usb"
     if input_source.startswith("/dev/video"):
         return 'usb'
+
+    elif input_source.startswith("rtsp://"):
+        return "rtsp"
     else:
         if input_source.startswith("rpi"):
             return 'rpi'

@@ -9,6 +9,7 @@ import setproctitle
 import cv2
 import time
 import hailo
+from track import (resetCamera, trackCamera, stopCamera)
 from hailo_rpi_common import (
     get_default_parser,
     QUEUE,
@@ -17,6 +18,8 @@ from hailo_rpi_common import (
     GStreamerApp,
     app_callback_class,
 )
+
+resetCamera()
 
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
@@ -44,8 +47,6 @@ def app_callback(pad, info, user_data):
 
     # Using the user_data to count the number of frames
     user_data.increment()
-    string_to_print = f"Frame count: {user_data.get_count()}\n"
-
     # Get the caps from the pad
     format, width, height = get_caps_from_pad(pad)
 
@@ -59,15 +60,19 @@ def app_callback(pad, info, user_data):
     roi = hailo.get_roi_from_buffer(buffer)
     detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
+    foundBall = False
     # Parse the detections
     detection_count = 0
     for detection in detections:
         label = detection.get_label()
         bbox = detection.get_bbox()
         confidence = detection.get_confidence()
-        if label == "person":
-            string_to_print += f"Detection: {label} {confidence:.2f}\n"
-            detection_count += 1
+        if label == "sports ball":
+            trackCamera(bbox)
+            foundBall = True
+    
+    if(not foundBall):
+        stopCamera()
     if user_data.use_frame:
         # Note: using imshow will not work here, as the callback function is not running in the main thread
         # Let's print the detection count to the frame
@@ -78,8 +83,9 @@ def app_callback(pad, info, user_data):
         # Convert the frame to BGR
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         user_data.set_frame(frame)
+    
 
-    print(string_to_print)
+
     return Gst.PadProbeReturn.OK
 
 
@@ -147,12 +153,18 @@ class GStreamerDetectionApp(GStreamerApp):
                 f"video/x-raw, format={self.network_format}, width=1536, height=864 ! "
                 + QUEUE("queue_src_scale")
                 + "videoscale ! "
-                f"video/x-raw, format={self.network_format}, width={self.network_width}, height={self.network_height}, framerate=30/1 ! "
+                f"video/x-raw format={self.network_format}, width={self.network_width}, height={self.network_height}, framerate=30/1 ! "
             )
         elif self.source_type == "usb":
             source_element = (
                 f"v4l2src device={self.video_source} name=src_0 ! "
                 "video/x-raw, width=640, height=480, framerate=30/1 ! "
+            )
+        elif self.source_type == "rtsp":
+            source_element = (
+                f"rtspsrc location={self.video_source} latency=0 name=src_0 ! "
+                "rtph264depay ! h264parse ! avdec_h264 max-threads=2 ! "
+                "video/x-raw, width=1920, height=1080, format=I420 ! "
             )
         else:
             source_element = (
@@ -185,13 +197,19 @@ class GStreamerDetectionApp(GStreamerApp):
             + QUEUE("queue_hailo_python")
             + QUEUE("queue_user_callback")
             + "identity name=identity_callback ! "
-            + QUEUE("queue_hailooverlay")
-            + "hailooverlay ! "
-            + QUEUE("queue_videoconvert")
-            + "videoconvert n-threads=3 qos=false ! "
-            + QUEUE("queue_hailo_display")
-            + f"fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.options_menu.show_fps} signal-fps-measurements=true "
         )
+        print(self.user_data)
+        if(self.options_menu.show_video):
+            pipeline_string += (
+                QUEUE("queue_hailooverlay")
+                + "hailooverlay ! "
+                + QUEUE("queue_videoconvert")
+                + "videoconvert n-threads=3 qos=false ! "
+                + QUEUE("queue_hailo_display")
+                + f"fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.options_menu.show_fps} signal-fps-measurements=true "
+            )
+        else:
+            pipeline_string += "fakesink sync=false"
         print(pipeline_string)
         return pipeline_string
 
