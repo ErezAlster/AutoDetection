@@ -37,8 +37,12 @@ class user_app_callback_class(app_callback_class):
 # User-defined callback function
 # -----------------------------------------------------------------------------------------------
 
+def generateYoloRow(label, bbox):
+    return f'{label} {bbox.xmin()} {bbox.ymin()} {bbox.xmax()} {bbox.ymax()}\n'
+
 # This is the callback function that will be called when data is available from the pipeline
 def app_callback(pad, info, user_data):
+    
     # Get the GstBuffer from the probe info
     buffer = info.get_buffer()
     # Check if the buffer is valid
@@ -51,16 +55,17 @@ def app_callback(pad, info, user_data):
     format, width, height = get_caps_from_pad(pad)
 
     # If the user_data.use_frame is set to True, we can get the video frame from the buffer
-    frame = None
-    if user_data.use_frame and format is not None and width is not None and height is not None:
-        # Get video frame
-        frame = get_numpy_from_buffer(buffer, format, width, height)
+    frame = get_numpy_from_buffer(buffer, format, width, height)
+    annotatedImage = frame.copy()
 
     # Get the detections from the buffer
     roi = hailo.get_roi_from_buffer(buffer)
     detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
     foundBall = False
+
+    yoloLabels = "";
+
     # Parse the detections
     detection_count = 0
     for detection in detections:
@@ -68,24 +73,27 @@ def app_callback(pad, info, user_data):
         bbox = detection.get_bbox()
         confidence = detection.get_confidence()
         if label == "sports ball":
-            trackCamera(bbox)
+            cv2.rectangle(annotatedImage, [round(bbox.xmin()*width), round(bbox.ymin()*height)], [round(bbox.xmax()*width), round(bbox.ymax()*height)], color=(255,0,0), thickness=2)
             foundBall = True
+        elif label == "person":
+            cv2.rectangle(annotatedImage, [round(bbox.xmin()*width), round(bbox.ymin()*height)], [round(bbox.xmax()*width), round(bbox.ymax()*height)], color=(255,255,65), thickness=2)
+
+
+        if label == "sports ball":
+            yoloLabels += generateYoloRow(0, bbox)
+        elif label == "person":
+            yoloLabels += generateYoloRow(1, bbox)        
     
-    if(not foundBall):
+    if(foundBall):
+        frameCount = user_data.get_count()
+        f = open(f'/home/erez/data/raw/1/labels/{frameCount}.txt', "a")
+        f.write(yoloLabels)
+        f.close()
+        cv2.imwrite(f'/home/erez/data/raw/1/images/{frameCount}.jpg', frame)
+        #cv2.imwrite(f'/home/erez/data/raw/1/{frameCount}_annotated.jpg', annotatedImage)
+        
         stopCamera()
-    if user_data.use_frame:
-        # Note: using imshow will not work here, as the callback function is not running in the main thread
-        # Let's print the detection count to the frame
-        cv2.putText(frame, f"Detections: {detection_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        # Example of how to use the new_variable and new_function from the user_data
-        # Let's print the new_variable and the result of the new_function to the frame
-        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        # Convert the frame to BGR
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        user_data.set_frame(frame)
     
-
-
     return Gst.PadProbeReturn.OK
 
 
@@ -100,11 +108,11 @@ class GStreamerDetectionApp(GStreamerApp):
         super().__init__(args, user_data)
         # Additional initialization code can be added here
         # Set Hailo parameters these parameters should be set based on the model used
-        self.batch_size = 2
+        self.batch_size = 8
         self.network_width = 640
         self.network_height = 640
         self.network_format = "RGB"
-        nms_score_threshold = 0.3
+        nms_score_threshold = 0.1
         nms_iou_threshold = 0.45
 
         # Temporary code: new postprocess will be merged to TAPPAS.
@@ -150,15 +158,12 @@ class GStreamerDetectionApp(GStreamerApp):
         if self.source_type == "rpi":
             source_element = (
                 "libcamerasrc name=src_0 ! "
-                f"video/x-raw, format={self.network_format}, width=1536, height=864 ! "
-                + QUEUE("queue_src_scale")
-                + "videoscale ! "
-                f"video/x-raw format={self.network_format}, width={self.network_width}, height={self.network_height}, framerate=30/1 ! "
+                f"video/x-raw, format={self.network_format}, width=1920, height=1080 ! "
             )
         elif self.source_type == "usb":
             source_element = (
                 f"v4l2src device={self.video_source} name=src_0 ! "
-                "video/x-raw, width=640, height=480, framerate=30/1 ! "
+                "video/x-raw, width=1920, height=1080, framerate=30/1 ! "
             )
         elif self.source_type == "rtsp":
             source_element = (
@@ -198,7 +203,6 @@ class GStreamerDetectionApp(GStreamerApp):
             + QUEUE("queue_user_callback")
             + "identity name=identity_callback ! "
         )
-        print(self.user_data)
         if(self.options_menu.show_video):
             pipeline_string += (
                 QUEUE("queue_hailooverlay")

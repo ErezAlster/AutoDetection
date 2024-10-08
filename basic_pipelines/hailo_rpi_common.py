@@ -183,7 +183,7 @@ class GStreamerApp:
         t = message.type
         if t == Gst.MessageType.EOS:
             print("End-of-stream")
-            self.on_eos()
+            self.shutdown()
         elif t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             print(f"Error: {err}, {debug}")

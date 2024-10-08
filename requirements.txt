@@ -3,3 +3,6 @@ setproctitle
 opencv-python
 smbus
 systemd
+Flask
+loguru
+gunicorn

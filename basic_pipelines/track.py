@@ -54,19 +54,46 @@ def doit():
         pan()
         tilt()
 
-t1 = threading.Thread(target=doit)
-t1.start()
+#t1 = threading.Thread(target=doit)
+#t1.start()
+
+currentMM = 5
+currentYAngleView = 110
+currentXAngleView = 140
+imageWidth = 1920
+imageHeight = 1080
+currentXAngle = 90
+currentYAngle = 90
+
 
 def stopCamera():
     val["panFactor"] = 0
     val["tiltFactor"] = 0
 
 def trackCamera(bbox):
+    global currentMM, currentXAngleView, imageWidth, imageHight, currentXAngle
     centerX = bbox.xmin() + (bbox.width() / 2) 
-    centerY = bbox.ymin() + (bbox.height() / 2)
+    centerXPixels = centerX*imageWidth
+    mXAngleChange = 90 + (currentXAngleView/2) 
 
-    val["panFactor"] = centerX/-0.5
-    #val["tiltFactor"] = centerY/-0.5
+    currentXAngle = (currentXAngle - ((centerXPixels-(imageWidth/2))/(2*mXAngleChange)))
+    log(f'{currentXAngle}')
 
-    log(f'{centerX} {val["panFactor"]}')
-    return
+    if currentXAngle<0:
+        currentXAngle = 0
+    if currentXAngle>180:
+        currentXAngle = 180
+    pwm.setRotationAngle(1, currentXAngle)
+
+    centerY = bbox.ymax()
+    centerYPixels = centerY*imageHeight
+    mYAngleChange = 90 + (currentYAngleView/2) 
+
+    currentYAngle = (currentXAngle - ((centerXPixels-(imageHeight/2))/(2*mYAngleChange)))
+    #log(f'{currentYAngle}')
+
+    if currentYAngle<0:
+        currentYAngle = 0
+    if currentYAngle>180:
+        currentYAngle = 180
+    #pwm.setRotationAngle(0, currentYAngle)
