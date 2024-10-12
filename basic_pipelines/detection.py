@@ -82,7 +82,7 @@ def app_callback(pad, info, user_data):
         if label == "sports ball":
             yoloLabels += generateYoloRow(0, bbox)
         elif label == "person":
-            yoloLabels += generateYoloRow(1, bbox)        
+            yoloLabels += generateYoloRow(1, bbox)
     
     if(foundBall):
         frameCount = user_data.get_count()
@@ -113,7 +113,7 @@ class GStreamerDetectionApp(GStreamerApp):
         self.network_height = 640
         self.network_format = "RGB"
         nms_score_threshold = 0.1
-        nms_iou_threshold = 0.45
+        nms_iou_threshold = 0.1
 
         # Temporary code: new postprocess will be merged to TAPPAS.
         # Check if new postprocess so file exists
@@ -155,6 +155,7 @@ class GStreamerDetectionApp(GStreamerApp):
         self.create_pipeline()
 
     def get_pipeline_string(self):
+
         if self.source_type == "rpi":
             source_element = (
                 "libcamerasrc name=src_0 ! "
