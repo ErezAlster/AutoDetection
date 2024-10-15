@@ -84,7 +84,6 @@ def get_default_parser():
         Defaults to /dev/video0"
     )
     parser.add_argument("--use-frame", "-u", action="store_true", help="Use frame from the callback function")
-    parser.add_argument("--show-video", "-s", action="store_true", help="show video?")
     parser.add_argument("--show-fps", "-f", action="store_true", help="Print FPS on sink")
     parser.add_argument(
         "--disable-sync", action="store_true",
@@ -247,9 +246,7 @@ class GStreamerApp:
         # Get xvimagesink element and disable QoS
         # xvimagesink is instantiated by fpsdisplaysink
         hailo_display = self.pipeline.get_by_name("hailo_display")
-        if hailo_display is None:
-            print("Warning: hailo_display element not found, add <fpsdisplaysink name=hailo_display> to your pipeline to support fps display.")
-        else:
+        if hailo_display is not None:
             xvimagesink = hailo_display.get_by_name("xvimagesink0")
             if xvimagesink is not None:
                 xvimagesink.set_property("qos", False)

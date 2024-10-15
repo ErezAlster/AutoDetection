@@ -5,7 +5,6 @@ import os
 import argparse
 import multiprocessing
 import numpy as np
-import setproctitle
 import cv2
 import time
 import hailo
@@ -18,8 +17,6 @@ from hailo_rpi_common import (
     GStreamerApp,
     app_callback_class,
 )
-
-resetCamera()
 
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
@@ -42,7 +39,7 @@ def generateYoloRow(label, bbox):
 
 # This is the callback function that will be called when data is available from the pipeline
 def app_callback(pad, info, user_data):
-    
+   
     # Get the GstBuffer from the probe info
     buffer = info.get_buffer()
     # Check if the buffer is valid
@@ -51,6 +48,8 @@ def app_callback(pad, info, user_data):
 
     # Using the user_data to count the number of frames
     user_data.increment()
+
+    print(user_data.get_count())
     # Get the caps from the pad
     format, width, height = get_caps_from_pad(pad)
 
@@ -73,17 +72,16 @@ def app_callback(pad, info, user_data):
         bbox = detection.get_bbox()
         confidence = detection.get_confidence()
         if label == "sports ball":
-            cv2.rectangle(annotatedImage, [round(bbox.xmin()*width), round(bbox.ymin()*height)], [round(bbox.xmax()*width), round(bbox.ymax()*height)], color=(255,0,0), thickness=2)
+            #cv2.rectangle(annotatedImage, [round(bbox.xmin()*width), round(bbox.ymin()*height)], [round(bbox.xmax()*width), round(bbox.ymax()*height)], color=(255,0,0), thickness=2)
             foundBall = True
-        elif label == "person":
-            cv2.rectangle(annotatedImage, [round(bbox.xmin()*width), round(bbox.ymin()*height)], [round(bbox.xmax()*width), round(bbox.ymax()*height)], color=(255,255,65), thickness=2)
+        result = cv2.rectangle(frame, [round(bbox.xmin()*width), round(bbox.ymin()*height)], [round(bbox.xmax()*width), round(bbox.ymax()*height)], color=(255,255,65), thickness=2)
 
+        #yoloLabels += generateYoloRow(label, bbox)
 
-        if label == "sports ball":
-            yoloLabels += generateYoloRow(0, bbox)
-        elif label == "person":
-            yoloLabels += generateYoloRow(1, bbox)
-    
+    #os.write(output, result.data)
+
+    #print(yoloLabels)
+    '''
     if(foundBall):
         frameCount = user_data.get_count()
         f = open(f'/home/erez/data/raw/1/labels/{frameCount}.txt', "a")
@@ -93,6 +91,7 @@ def app_callback(pad, info, user_data):
         #cv2.imwrite(f'/home/erez/data/raw/1/{frameCount}_annotated.jpg', annotatedImage)
         
         stopCamera()
+    '''
     
     return Gst.PadProbeReturn.OK
 
@@ -148,74 +147,61 @@ class GStreamerDetectionApp(GStreamerApp):
             f"nms-iou-threshold={nms_iou_threshold} "
             f"output-format-type=HAILO_FORMAT_TYPE_FLOAT32"
         )
-
-        # Set the process title
-        setproctitle.setproctitle("Hailo Detection App")
-
         self.create_pipeline()
 
     def get_pipeline_string(self):
+        tiles_along_x_axis=2
+        tiles_along_y_axis=2
+        overlap_x_axis=0.08
+        overlap_y_axis=0.08
+        iou_threshold=0.3
 
-        if self.source_type == "rpi":
-            source_element = (
-                "libcamerasrc name=src_0 ! "
-                f"video/x-raw, format={self.network_format}, width=1920, height=1080 ! "
-            )
-        elif self.source_type == "usb":
-            source_element = (
-                f"v4l2src device={self.video_source} name=src_0 ! "
-                "video/x-raw, width=1920, height=1080, framerate=30/1 ! "
-            )
-        elif self.source_type == "rtsp":
-            source_element = (
-                f"rtspsrc location={self.video_source} latency=0 name=src_0 ! "
-                "rtph264depay ! h264parse ! avdec_h264 max-threads=2 ! "
-                "video/x-raw, width=1920, height=1080, format=I420 ! "
-            )
-        else:
-            source_element = (
-                f"filesrc location=\"{self.video_source}\" name=src_0 ! "
-                + QUEUE("queue_dec264")
-                + " qtdemux ! h264parse ! avdec_h264 max-threads=2 ! "
-                " video/x-raw, format=I420 ! "
-            )
-        source_element += QUEUE("queue_scale")
-        source_element += "videoscale n-threads=2 ! "
-        source_element += QUEUE("queue_src_convert")
-        source_element += "videoconvert n-threads=3 name=src_convert qos=false ! "
-        source_element += f"video/x-raw, format={self.network_format}, width={self.network_width}, height={self.network_height}, pixel-aspect-ratio=1/1 ! "
+        DETECTION_PIPELINE=(
+            "queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+            + f"hailonet hef-path={self.hef_path} ! "
+            + "queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+            + f"hailofilter so-path={self.default_postprocess_so} {self.labels_config} qos=false ! "
+            + "queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0"
+        )
+
+        TILE_CROPPER_ELEMENT=(
+            "hailotilecropper internal-offset=false name=cropper "
+            + f"tiles-along-x-axis={tiles_along_x_axis} tiles-along-y-axis={tiles_along_y_axis} overlap-x-axis={overlap_x_axis} overlap-y-axis={overlap_y_axis}"
+        )
 
         pipeline_string = (
-            "hailomuxer name=hmux "
-            + source_element
-            + "tee name=t ! "
-            + QUEUE("bypass_queue", max_size_buffers=20)
-            + "hmux.sink_0 "
-            + "t. ! "
-            + QUEUE("queue_hailonet")
-            + "videoconvert n-threads=3 ! "
-            f"hailonet hef-path={self.hef_path} batch-size={self.batch_size} {self.thresholds_str} force-writable=true ! "
-            + QUEUE("queue_hailofilter")
-            + f"hailofilter so-path={self.default_postprocess_so} {self.labels_config} qos=false ! "
-            + QUEUE("queue_hmuc")
-            + "hmux.sink_1 "
-            + "hmux. ! "
-            + QUEUE("queue_hailo_python")
-            + QUEUE("queue_user_callback")
+            #f'libcamerasrc name=src_0  ! videoconvert qos=false !'
+            # + f'video/x-raw, format=RGB, width=1456, height=1088 ! '
+            f"v4l2src device={self.video_source} name=src_0 ! videoconvert qos=false ! "
+            + f"video/x-raw,pixel-aspect-ratio=1/1,format=RGB ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+            + f"{TILE_CROPPER_ELEMENT} hailotileaggregator flatten-detections=true iou-threshold={iou_threshold} name=agg "
+            + f"cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 "
+            + f"cropper. ! {DETECTION_PIPELINE} ! agg. "
+            + f"agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+            #+ QUEUE("queue_hailo_python")
+            #+ QUEUE("queue_user_callback")
             + "identity name=identity_callback ! "
         )
-        if(self.options_menu.show_video):
-            pipeline_string += (
-                QUEUE("queue_hailooverlay")
-                + "hailooverlay ! "
-                + QUEUE("queue_videoconvert")
-                + "videoconvert n-threads=3 qos=false ! "
-                + QUEUE("queue_hailo_display")
-                + f"fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.options_menu.show_fps} signal-fps-measurements=true "
-            )
-        else:
-            pipeline_string += "fakesink sync=false"
-        print(pipeline_string)
+        match self.options_menu.output:
+            case 'window':
+                pipeline_string += (
+                    QUEUE("queue_hailooverlay")
+                    + "hailooverlay ! "
+                    + QUEUE("queue_videoconvert")
+                    + "videoconvert qos=false ! "
+                    + QUEUE("queue_hailo_display")
+                    + f"fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.options_menu.show_fps} signal-fps-measurements=true"
+                )
+            case 'rtsp':
+                pipeline_string += (
+                     QUEUE("queue_hailooverlay")
+                    + "hailooverlay ! "
+                    + QUEUE("queue_videoconvert")
+                    + "videoconvert qos=false ! "
+                    + "x264enc tune=zerolatency bitrate=6000 speed-preset=ultrafast ! rtspclientsink location=rtsp://127.0.0.1:8554/hailo"
+                )
+            case None:
+                pipeline_string += "fakesink sync=false"
         return pipeline_string
 
 if __name__ == "__main__":
@@ -228,6 +214,12 @@ if __name__ == "__main__":
         default="yolov6n",
         choices=['yolov6n', 'yolov8s', 'yolox_s_leaky'],
         help="Which Network to use, default is yolov6n",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        choices=[None, 'rtsp', 'window'],
+        help="output results to",
     )
     parser.add_argument(
         "--hef-path",
