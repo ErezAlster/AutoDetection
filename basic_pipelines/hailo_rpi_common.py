@@ -167,7 +167,6 @@ class GStreamerApp:
             self.pipeline = Gst.parse_launch(pipeline_string)
         except Exception as e:
             print(e)
-            print(pipeline_string)
             sys.exit(1)
 
         # Connect to hailo_display fps-measurements

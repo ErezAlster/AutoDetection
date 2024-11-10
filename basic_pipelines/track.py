@@ -1,8 +1,6 @@
 
 from PCA9685 import PCA9685
-import signal
 from systemd import journal
-import threading
 
 def log(message):
     journal.write(message)

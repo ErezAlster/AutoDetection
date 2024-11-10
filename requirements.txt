@@ -6,3 +6,4 @@ systemd
 Flask
 loguru
 gunicorn
+pillow

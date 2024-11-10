@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import time
 import hailo
-from track import (resetCamera, trackCamera, stopCamera)
+#from track import (resetCamera, trackCamera, stopCamera)
 from hailo_rpi_common import (
     get_default_parser,
     QUEUE,
@@ -124,15 +124,6 @@ class GStreamerDetectionApp(GStreamerApp):
 
         if args.hef_path is not None:
             self.hef_path = args.hef_path
-        # Set the HEF file path based on the network
-        elif args.network == "yolov6n":
-            self.hef_path = os.path.join(self.current_path, '../resources/yolov6n.hef')
-        elif args.network == "yolov8s":
-            self.hef_path = os.path.join(self.current_path, '../resources/yolov8s_h8l.hef')
-        elif args.network == "yolox_s_leaky":
-            self.hef_path = os.path.join(self.current_path, '../resources/yolox_s_leaky_h8l_mz.hef')
-        else:
-            assert False, "Invalid network type"
 
         # User-defined label JSON file
         if args.labels_json is not None:
@@ -169,17 +160,38 @@ class GStreamerDetectionApp(GStreamerApp):
             + f"tiles-along-x-axis={tiles_along_x_axis} tiles-along-y-axis={tiles_along_y_axis} overlap-x-axis={overlap_x_axis} overlap-y-axis={overlap_y_axis}"
         )
 
+        name = "src_0"
+        video_format = "RGB"
+        if self.video_source.startswith("/dev/video"):
+            source_element =(
+                  f'v4l2src device={self.video_source} name={name} ! videoconvert qos=false ! '
+                + f"video/x-raw,pixel-aspect-ratio=1/1,format=RGB ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+            )
+        elif self.video_source == "rpi":
+            source_element = (
+                "libcamerasrc name={name} ! "
+                f"video/x-raw, format={self.network_format}, width=1536, height=864 ! "
+                + QUEUE("queue_src_scale")
+                + "videoscale ! "
+                f"video/x-raw, format={self.network_format}, width={self.network_width}, height={self.network_height}, framerate=30/1 ! "
+            )
+        else:
+             source_element = (
+                  f"filesrc location={self.video_source} name=src_0 ! decodebin ! videoconvert qos=false"
+            )
+        source_pipeline = (
+            f'{source_element} '
+        )
+
         pipeline_string = (
-            #f'libcamerasrc name=src_0  ! videoconvert qos=false !'
-            # + f'video/x-raw, format=RGB, width=1456, height=1088 ! '
-            f"v4l2src device={self.video_source} name=src_0 ! videoconvert qos=false ! "
-            + f"video/x-raw,pixel-aspect-ratio=1/1,format=RGB ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+            "hailomuxer name=hmux "
+            + source_pipeline
             + f"{TILE_CROPPER_ELEMENT} hailotileaggregator flatten-detections=true iou-threshold={iou_threshold} name=agg "
             + f"cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 "
             + f"cropper. ! {DETECTION_PIPELINE} ! agg. "
             + f"agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
-            #+ QUEUE("queue_hailo_python")
-            #+ QUEUE("queue_user_callback")
+            + QUEUE("queue_hailo_python")
+            + QUEUE("queue_user_callback")
             + "identity name=identity_callback ! "
         )
         match self.options_menu.output:
@@ -210,12 +222,6 @@ if __name__ == "__main__":
     parser = get_default_parser()
     # Add additional arguments here
     parser.add_argument(
-        "--network",
-        default="yolov6n",
-        choices=['yolov6n', 'yolov8s', 'yolox_s_leaky'],
-        help="Which Network to use, default is yolov6n",
-    )
-    parser.add_argument(
         "--output",
         default=None,
         choices=[None, 'rtsp', 'window'],
@@ -223,7 +229,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--hef-path",
-        default=None,
+        default="resources/starium-football.hef",
         help="Path to HEF file",
     )
     parser.add_argument(

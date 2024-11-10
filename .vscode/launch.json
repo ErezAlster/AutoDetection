@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flask",
+            "type": "debugpy",
+            "request": "launch",
+            "stopOnEntry": false,
+            "program": "${workspaceRoot}/debug.py",
+            "env": {
+                "FLASK_APP": "${workspaceRoot}/debug.py"
+            },
+            "args": [
+                "run"
+            ],
+            "envFile": "${workspaceFolder}/.env",
+        }
+    ]
+}
