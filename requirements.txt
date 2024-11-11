@@ -7,3 +7,4 @@ Flask
 loguru
 gunicorn
 pillow
+supervision
