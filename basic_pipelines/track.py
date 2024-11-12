@@ -16,7 +16,7 @@ pwm.setPWMFreq(50)
 
 currentMM = 5
 currentXAngleView = 53
-imageWidth = 1280
+imageWidth = 1920
 currentXAngle = 90
 currentYAngle = 100
 pwm.setRotationAngle(0, currentXAngle)

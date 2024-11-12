@@ -200,7 +200,7 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
     elif source_type == 'usb':
         source_element = (
             f'v4l2src device={video_source} name={name} ! '
-            'video/x-raw, width=1280, height=720 ! '
+            'video/x-raw, width=1920, height=1080 ! '
         )
     else:
         source_element = (
