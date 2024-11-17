@@ -19,6 +19,8 @@ def extract_detections(hailo_detections, w: int, h: int) -> Dict[str, np.ndarray
         if class_id_num==1:
             bbox = detection.get_bbox()
             score = detection.get_confidence()
+            print(class_id_num, detection.get_label(), score)
+
             xyxy.append([bbox.xmin()* w, bbox.ymin() * h, bbox.xmax() * w, bbox.ymax() * h])
             confidence.append(score)
             class_id.append(class_id_num)

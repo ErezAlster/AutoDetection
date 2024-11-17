@@ -8,3 +8,4 @@ loguru
 gunicorn
 pillow
 supervision
+pyjoystick

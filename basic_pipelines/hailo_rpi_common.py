@@ -195,12 +195,12 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
     if source_type == 'rpi':
         source_element = (
             f'libcamerasrc name={name} ! '
-            f'video/x-raw, format={video_format}, width=1920, height=1080 ! videoconvert ! '
+            f'video/x-raw, format={video_format}, width={video_width}, height={video_height}, framerate=30/1 !'
         )
     elif source_type == 'usb':
         source_element = (
             f'v4l2src device={video_source} name={name} ! '
-            'video/x-raw, width=1920, height=1080 ! '
+            f'video/x-raw, width={video_width}, height={video_height} ! '
         )
     else:
         source_element = (
@@ -263,9 +263,17 @@ def INFERENCE_PIPELINE(hef_path, post_process_so, batch_size=1, config_json=None
         f'hailofilter name={name}_hailofilter so-path={post_process_so} {config_str} {function_name_str} qos=false '
     )
 
+    inference_pipeline = (
+        f"queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+        f"hailonet hef-path={hef_path} output-format-type=HAILO_FORMAT_TYPE_FLOAT32 ! "
+        f"queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! "
+        f"hailofilter function-name=dsddsds so-path={post_process_so} qos=false ! "
+        f"queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0"
+    )
+
     return inference_pipeline
 
-def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=20, name='inference_wrapper'):
+def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=2, name='inference_wrapper'):
     """
     Creates a GStreamer pipeline string that wraps an inner pipeline with a hailocropper and hailoaggregator.
     This allows to keep the original video resolution and color-space (format) of the input frame.
@@ -281,6 +289,7 @@ def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=20, name=
     """
     # Get the directory for post-processing shared objects
     tappas_post_process_dir = os.environ.get('TAPPAS_POST_PROC_DIR', '')
+    print(tappas_post_process_dir)
     whole_buffer_crop_so = os.path.join(tappas_post_process_dir, 'cropping_algorithms/libwhole_buffer.so')
 
     # Construct the inference wrapper pipeline string
@@ -300,7 +309,6 @@ def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=20, name=
         f"cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. "
         f"cropper. ! {inner_pipeline} ! agg. "
         f"agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 "
-
     )
 
     return inference_wrapper_pipeline
@@ -325,12 +333,13 @@ def DISPLAY_PIPELINE(video_sink='xvimagesink', sync='true', show_fps='false', na
         f'hailooverlay name={name}_hailooverlay ! '
         f'{QUEUE(name=f"{name}_videoconvert_q")} ! '
         f'videoconvert name={name}_videoconvert n-threads=2 qos=false ! '
-        f'{QUEUE(name=f"{name}_q")} ! '
-        f'fpsdisplaysink name={name} video-sink={video_sink} sync={sync} text-overlay={show_fps} signal-fps-measurements=true '
+        #f'video/x-raw, format={self.video_format}, width={self.video_width}, height={video_height} ! '
+        f" x264enc tune=zerolatency bitrate=1000 speed-preset=superfast ! rtspclientsink location=rtsp://127.0.0.1:8554/hailo"
+        #f'fpsdisplaysink name={name} video-sink={video_sink} sync={sync} text-overlay={show_fps} signal-fps-measurements=true '
     )
 
     display_pipeline = "fakesink sync=false"
-
+    #display_pipeline =  f" videoconvert ! x264enc tune=zerolatency bitrate=1000 speed-preset=superfast ! rtspclientsink location=rtsp://127.0.0.1:8554/hailo"
     return display_pipeline
 
 def USER_CALLBACK_PIPELINE(name='identity_callback'):
@@ -380,8 +389,8 @@ class GStreamerApp:
 
         # Set Hailo parameters; these parameters should be set based on the model used
         self.batch_size = 1
-        self.network_width = 640
-        self.network_height = 640
+        self.network_width = 1280
+        self.network_height = 720
         self.network_format = "RGB"
         self.hef_path = None
         self.app_callback = None

@@ -2,10 +2,13 @@ c-venv:
 	python -m venv ./.venv
 
 venv: 
-	source .venv/bin/activate
+	. venv_hailo_rpi5_examples/bin/activate
 
 run:
-	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/yolov8s.hef
+	python basic_pipelines/detection.py -i rpi --hef-path resources/yolov8s.hef
+
+run-starium:
+	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/starium-football.hef
 
 stream-video:
 	sudo modprobe v4l2loopback devices=2 exclusive_caps=1,1 video_nr=10,11 card_label="Raw Video","Annotated Camera"
