@@ -61,7 +61,7 @@ class GStreamerDetectionApp(GStreamerApp):
             self.arch = args.arch
 
 
-        
+
         self.hef_path = args.hef_path
         # Set the post-processing shared object file
         self.post_process_so = os.path.join(self.current_path, '../resources/libyolo_hailortpp_postprocess.so')
@@ -81,7 +81,7 @@ class GStreamerDetectionApp(GStreamerApp):
 
     def get_pipeline_string(self):
         source_pipeline = SOURCE_PIPELINE(video_source=self.video_source, video_width=1280, video_height=720)
-        detection_pipeline = INFERENCE_PIPELINE_WRAPPER(INFERENCE_PIPELINE(
+        detection_pipeline = (INFERENCE_PIPELINE(
             hef_path=self.hef_path,
             post_process_so=self.post_process_so,
             batch_size=self.batch_size,

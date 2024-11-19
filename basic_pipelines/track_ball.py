@@ -42,7 +42,9 @@ def postprocess_detections(detections: Dict[str, np.ndarray],) -> np.ndarray:
             class_id=detections["class_id"],
         )
 
-
         sv_detections = tracker.update_with_detections(sv_detections)
+
+        if(last_track_id == None):
+            print(tracker.tracked_tracks)
 
         trackCamera(detections["xyxy"][0])

@@ -25,7 +25,7 @@ currentXAngleView = 53
 currentYAngleView = 70
 imageWidth = 1920
 imageHeight = 1080
-currentXAngle = 90
+currentXAngle = 91
 panFactor = 0
 manualX = False
 manualY = False
@@ -33,6 +33,7 @@ tiltFactor = 0
 currentYAngle = 90
 pwm.setRotationAngle(0, currentXAngle)
 pwm.setRotationAngle(1, currentYAngle)
+
 
 def handleServoMovment(centerPixel, axisPixels, angleView):
     mXAngleChange = 90 + (angleView/2)
@@ -119,5 +120,5 @@ def joystick_worker():
 
 tolat = mp.Queue() 
 
-p = Process(target=joystick_worker)
-p.start()
+#p = Process(target=joystick_worker)
+#p.start()

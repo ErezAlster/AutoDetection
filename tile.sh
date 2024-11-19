@@ -4,7 +4,7 @@ set -e
 function init_variables() {
     print_help_if_needed $@
     script_dir=$(dirname $(realpath "$0"))
-    source $script_dir/../../../../../scripts/misc/checks_before_run.sh
+    #source $script_dir/../../../../../scripts/misc/checks_before_run.sh
 
     readonly POSTPROCESS_DIR="$TAPPAS_WORKSPACE/apps/h8/gstreamer/libs/post_processes"
     readonly RESOURCES_DIR="$TAPPAS_WORKSPACE/apps/h8/gstreamer/general/tiling/resources"

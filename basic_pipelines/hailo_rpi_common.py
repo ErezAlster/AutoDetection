@@ -218,7 +218,7 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
         # f'video/x-raw, format={video_format}, width={video_width}, height={video_height} ! '
     )
 
-    return source_pipeline
+    return source_element
 
 def INFERENCE_PIPELINE(hef_path, post_process_so, batch_size=1, config_json=None, post_function_name=None, additional_params='', name='inference'):
     """
@@ -290,7 +290,7 @@ def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=2, name='
     # Get the directory for post-processing shared objects
     tappas_post_process_dir = os.environ.get('TAPPAS_POST_PROC_DIR', '')
     print(tappas_post_process_dir)
-    whole_buffer_crop_so = os.path.join(tappas_post_process_dir, 'cropping_algorithms/libwhole_buffer.so')
+    whole_buffer_crop_so = os.path.join(tappas_post_process_dir, 'cropping_algorithms/libdetection_croppers.so.so')
 
     # Construct the inference wrapper pipeline string
     inference_wrapper_pipeline = (
@@ -310,7 +310,6 @@ def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=2, name='
         f"cropper. ! {inner_pipeline} ! agg. "
         f"agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 "
     )
-
     return inference_wrapper_pipeline
 
 def DISPLAY_PIPELINE(video_sink='xvimagesink', sync='true', show_fps='false', name='hailo_display'):
