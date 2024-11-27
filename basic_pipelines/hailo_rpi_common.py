@@ -176,7 +176,7 @@ def QUEUE(name, max_size_buffers=3, max_size_bytes=0, max_size_time=0, leaky='no
     q_string = f'queue name={name} leaky={leaky} max-size-buffers={max_size_buffers} max-size-bytes={max_size_bytes} max-size-time={max_size_time} '
     return q_string
 
-def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_height=640, name='source'):
+def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_height=640, name='src_0'):
     """
     Creates a GStreamer pipeline string for the video source.
 
@@ -191,16 +191,20 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
         str: A string representing the GStreamer pipeline for the video source.
     """
     source_type = get_source_type(video_source)
-
+    #libcamerasrc name=src_0 ! video/x-raw, format=RGB, width=1920, height=1080 ! queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoscale name=source_videoscale n-threads=2 ! queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoconvert n-threads=3 name=source_convert qos=false ! video/x-raw, format=RGB, pixel-aspect-ratio=1/1 !  queue name=inference_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! videoscale name=inference_videoscale n-threads=2 qos=false ! queue name=inference_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! video/x-raw, pixel-aspect-ratio=1/1 ! videoconvert name=inference_videoconvert n-threads=2 ! queue name=inference_hailonet_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! hailonet name=inference_hailonet hef-path=/home/erez/git/hailo-rpi5-examples/basic_pipelines/../resources/yolov8m.hef batch-size=2 nms-score-threshold=0.3 nms-iou-threshold=0.45 output-format-type=HAILO_FORMAT_TYPE_FLOAT32 force-writable=true ! queue name=inference_hailofilter_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! hailofilter name=inference_hailofilter so-path=/home/erez/git/hailo-rpi5-examples/basic_pipelines/../resources/libyolo_hailortpp_postprocess.so   qos=false  ! queue name=identity_callback_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! identity name=identity_callback  ! fakesink
+    #libcamerasrc name=src_0 ! video/x-raw, format=RGB, width=1920, height=1080 ! queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoscale name=source_videoscale n-threads=2 ! queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoconvert n-threads=3 name=source_convert qos=false ! video/x-raw, format=RGB, pixel-aspect-ratio=1/1 !  hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=2 tiles-along-y-axis=1 overlap-x-axis=0.00 overlap-y-axis=0.00 hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailonet hef-path=resources/starium.hef output-format-type=HAILO_FORMAT_TYPE_FLOAT32 ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailofilter so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so qos=false ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! queue name=identity_callback_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! identity name=identity_callback  ! queue name=hailo_display_hailooverlay_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! hailooverlay name=hailo_display_hailooverlay ! queue name=hailo_display_videoconvert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! videoconvert name=hailo_display_videoconvert n-threads=2 qos=false ! x264enc bitrate=6000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/hailo
     if source_type == 'rpi':
         source_element = (
             f'libcamerasrc name={name} ! '
-            f'video/x-raw, format={video_format}, width=1920, height=1080 ! videoconvert ! '
+            f'video/x-raw, format={video_format}, width={video_width}, height={video_height} ! '
+            f'queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+            f'videoscale name=source_videoscale n-threads=2 ! '
+            f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         )
     elif source_type == 'usb':
         source_element = (
             f'v4l2src device={video_source} name={name} ! '
-            'video/x-raw, width=1920, height=1080 ! '
+            'video/x-raw, width=1920, height=1080, framerates=30 ! '
         )
     else:
         source_element = (
@@ -209,13 +213,11 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
             'qtdemux ! h264parse ! avdec_h264 max-threads=2 ! '
         )
     source_pipeline = (
-        f'{source_element} '
-        #f'{QUEUE(name=f"{name}_scale_q")} ! '
-        #f'videoscale name={name}_videoscale n-threads=2 ! '
-        f'{QUEUE(name=f"{name}_convert_q")} ! '
-        f'videoconvert n-threads=3 name={name}_convert qos=true ! '
-        f'video/x-raw, format={video_format}, pixel-aspect-ratio=1/1 ! '
-        # f'video/x-raw, format={video_format}, width={video_width}, height={video_height} ! '
+        f'{source_element}'
+        #f'{QUEUE(name=f"{name}_convert_q")} ! '
+        #f'videoconvert n-threads=2 name={name}_convert qos=false ! '
+        f'videoconvert n-threads=3 name=source_convert qos=false ! '
+        f'video/x-raw, format=RGB, pixel-aspect-ratio=1/1 ! '
     )
 
     return source_pipeline
@@ -265,7 +267,7 @@ def INFERENCE_PIPELINE(hef_path, post_process_so, batch_size=1, config_json=None
 
     return inference_pipeline
 
-def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=20, name='inference_wrapper'):
+def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='inference_wrapper', ):
     """
     Creates a GStreamer pipeline string that wraps an inner pipeline with a hailocropper and hailoaggregator.
     This allows to keep the original video resolution and color-space (format) of the input frame.
@@ -284,7 +286,7 @@ def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=20, name=
     whole_buffer_crop_so = os.path.join(tappas_post_process_dir, 'cropping_algorithms/libwhole_buffer.so')
 
     # Construct the inference wrapper pipeline string
-    inference_wrapper_pipeline = (
+    '''inference_wrapper_pipeline = (
         f'{QUEUE(name=f"{name}_input_q")} ! '
         f'hailocropper name={name}_crop so-path={whole_buffer_crop_so} function-name=create_crops use-letterbox=true resize-method=inter-area internal-offset=true '
         f'hailoaggregator name={name}_agg '
@@ -301,7 +303,10 @@ def INFERENCE_PIPELINE_WRAPPER(inner_pipeline, bypass_max_size_buffers=20, name=
         f"cropper. ! {inner_pipeline} ! agg. "
         f"agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 "
 
-    )
+    )'''
+ 
+    inference_wrapper_pipeline=f"hailotilecropper scale-level=1 internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=2 overlap-x-axis=0.00 overlap-y-axis=0.00 hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailonet hef-path={hef_path} output-format-type=HAILO_FORMAT_TYPE_FLOAT32 ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailofilter so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so qos=false ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0"
+
 
     return inference_wrapper_pipeline
 
@@ -325,11 +330,15 @@ def DISPLAY_PIPELINE(video_sink='xvimagesink', sync='true', show_fps='false', na
         f'hailooverlay name={name}_hailooverlay ! '
         f'{QUEUE(name=f"{name}_videoconvert_q")} ! '
         f'videoconvert name={name}_videoconvert n-threads=2 qos=false ! '
-        f'{QUEUE(name=f"{name}_q")} ! '
-        f'fpsdisplaysink name={name} video-sink={video_sink} sync={sync} text-overlay={show_fps} signal-fps-measurements=true '
+        #f'fpsdisplaysink name={name} video-sink={video_sink} sync={sync} text-overlay={show_fps} signal-fps-measurements=true '
     )
 
-    display_pipeline = "fakesink sync=false"
+    display_pipeline = (
+        f'{display_pipeline}'
+        f'x264enc bitrate=600 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/hailo'
+    )
+
+    display_pipeline = "fakesink"
 
     return display_pipeline
 
@@ -487,16 +496,10 @@ class GStreamerApp:
             identity_pad = identity.get_static_pad("src")
             identity_pad.add_probe(Gst.PadProbeType.BUFFER, self.app_callback, self.user_data)
 
-        hailo_display = self.pipeline.get_by_name("hailo_display")
-        if hailo_display is None:
-            print("Warning: hailo_display element not found, add <fpsdisplaysink name=hailo_display> to your pipeline to support fps display.")
-        else:
-            xvimagesink = hailo_display.get_by_name("xvimagesink0")
-            if xvimagesink is not None:
-                xvimagesink.set_property("qos", False)
+
 
         # Disable QoS to prevent frame drops
-        #disable_qos(self.pipeline)
+        disable_qos(self.pipeline)
 
         # Start a subprocess to run the display_user_data_frame function
         if self.options_menu.use_frame:

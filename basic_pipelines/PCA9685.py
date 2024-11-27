@@ -71,7 +71,8 @@ class PCA9685:
     self.write(self.__MODE2, 0x04)
 
   def setPWM(self, channel, on, off):
-    "Sets a single PWM channel"
+    #"Sets a single PWM channel"
+    #print(on & 0xFF, on >> 8, off & 0xFF, off >> 8)
     self.write(self.__LED0_ON_L+4*channel, on & 0xFF)
     self.write(self.__LED0_ON_H+4*channel, on >> 8)
     self.write(self.__LED0_OFF_L+4*channel, off & 0xFF)
@@ -84,7 +85,7 @@ class PCA9685:
     pulse = pulse*4096/20000        #PWM frequency is 50HZ,the period is 20000us
     self.setPWM(channel, 0, int(pulse))
     
-  def setRotationAngle(self, channel, Angle): 
+  def setRotationAngle(self, channel, Angle):
     if(Angle >= 0 and Angle <= 180):
         temp = Angle * (2000 / 180) + 501
         self.setServoPulse(channel, temp)
