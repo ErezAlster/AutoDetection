@@ -125,7 +125,7 @@ def get_default_parser():
         Defaults to example video resources/detection0.mp4"
     )
     parser.add_argument("--use-frame", "-u", action="store_true", help="Use frame from the callback function")
-    parser.add_argument("--show-fps", "-f", action="store_true", help="Print FPS on sink")
+    parser.add_argument("--output", "-o", default=None, choices=['rtsp'], help="output video to")
     parser.add_argument(
             "--arch",
             default=None,
@@ -284,6 +284,10 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
     # Get the directory for post-processing shared objects
     tappas_post_process_dir = os.environ.get('TAPPAS_POST_PROC_DIR', '')
     whole_buffer_crop_so = os.path.join(tappas_post_process_dir, 'cropping_algorithms/libwhole_buffer.so')
+    thresholds_str = (
+        f"nms-score-threshold=0.5 "
+        f"nms-iou-threshold=0.45 "
+    )
 
     # Construct the inference wrapper pipeline string
     '''inference_wrapper_pipeline = (
@@ -305,12 +309,22 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
 
     )'''
  
-    inference_wrapper_pipeline=f"hailotilecropper scale-level=1 internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=2 overlap-x-axis=0.00 overlap-y-axis=0.00 hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailonet hef-path={hef_path} output-format-type=HAILO_FORMAT_TYPE_FLOAT32 ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailofilter so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so qos=false ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0"
-
+    inference_wrapper_pipeline = (
+        f'hailotilecropper scale-level=1 internal-offset=false name=cropper tiles-along-x-axis=1 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 '
+        f'hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! '
+        f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+        f'agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+        f'hailonet hef-path={hef_path} batch-size=8 {thresholds_str} output-format-type=HAILO_FORMAT_TYPE_FLOAT32 ! '
+        f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+        f'hailofilter so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so qos=false ! '
+        f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+        f'agg. agg. ! '
+        f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0'
+    )
 
     return inference_wrapper_pipeline
 
-def DISPLAY_PIPELINE(video_sink='xvimagesink', sync='true', show_fps='false', name='hailo_display'):
+def DISPLAY_PIPELINE(output=None, name='hailo_display'):
     """
     Creates a GStreamer pipeline string for displaying the video.
     It includes the hailooverlay plugin to draw bounding boxes and labels on the video.
@@ -318,27 +332,29 @@ def DISPLAY_PIPELINE(video_sink='xvimagesink', sync='true', show_fps='false', na
     Args:
         video_sink (str, optional): The video sink element to use. Defaults to 'xvimagesink'.
         sync (str, optional): The sync property for the video sink. Defaults to 'true'.
-        show_fps (str, optional): Whether to show the FPS on the video sink. Should be 'true' or 'false'. Defaults to 'false'.
+        output (str, optional): None or rtsp
         name (str, optional): The prefix name for the pipeline elements. Defaults to 'hailo_display'.
 
     Returns:
         str: A string representing the GStreamer pipeline for displaying the video.
     """
-    # Construct the display pipeline string
-    display_pipeline = (
-        f'{QUEUE(name=f"{name}_hailooverlay_q")} ! '
-        f'hailooverlay name={name}_hailooverlay ! '
-        f'{QUEUE(name=f"{name}_videoconvert_q")} ! '
-        f'videoconvert name={name}_videoconvert n-threads=2 qos=false ! '
-        #f'fpsdisplaysink name={name} video-sink={video_sink} sync={sync} text-overlay={show_fps} signal-fps-measurements=true '
-    )
 
-    display_pipeline = (
-        f'{display_pipeline}'
-        f'x264enc bitrate=600 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/hailo'
-    )
+    if(output is not None):
+        # Construct the display pipeline string
+        display_pipeline = (
+            f'{QUEUE(name=f"{name}_hailooverlay_q")} ! '
+            f'hailooverlay name={name}_hailooverlay ! '
+            f'{QUEUE(name=f"{name}_videoconvert_q")} ! '
+            f'videoconvert name={name}_videoconvert n-threads=2 qos=false ! '
+        )
 
-    display_pipeline = "fakesink"
+        if(output =="rtsp"):
+            display_pipeline = (
+                f'{display_pipeline}'
+                f'x264enc bitrate=6000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/hailo'
+            )
+    else:
+        display_pipeline = "fakesink"
 
     return display_pipeline
 
@@ -365,7 +381,7 @@ def USER_CALLBACK_PIPELINE(name='identity_callback'):
 class GStreamerApp:
     def __init__(self, args, user_data: app_callback_class):
         # Set the process title
-        setproctitle.setproctitle("Hailo Python App")
+        setproctitle.setproctitle("Starium Tracker")
 
         # Create an empty options menu
         self.options_menu = args
@@ -399,7 +415,7 @@ class GStreamerApp:
         user_data.use_frame = self.options_menu.use_frame
 
         self.sync = "false" if (self.options_menu.disable_sync or self.source_type != "file") else "true"
-        self.show_fps = "true" if self.options_menu.show_fps else "false"
+        self.output =self.options_menu.output
 
         if self.options_menu.dump_dot:
             os.environ["GST_DEBUG_DUMP_DOT_DIR"] = self.current_path

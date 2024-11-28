@@ -4,11 +4,20 @@ c-venv:
 venv: 
 	source .venv/bin/activate
 
-run-yolo:
-	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/yolov8s_h8l.hef
+run-test:
+	python basic_pipelines/detection.py -i resources/test.mp4 --hef-path resources/starium.hef -o rtsp
 
 run:
 	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/starium.hef
+
+run-rtsp:
+	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/starium.hef -o rtsp
+
+run-rpi:
+	python basic_pipelines/detection.py -i rpi --hef-path resources/starium.hef
+
+copyconf:
+	sudo cp starium.yaml /usr/local/etc
 
 stream-video:
 	sudo modprobe v4l2loopback devices=2 exclusive_caps=1,1 video_nr=10,11 card_label="Raw Video","Annotated Camera"

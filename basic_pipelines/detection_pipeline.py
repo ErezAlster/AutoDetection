@@ -90,10 +90,16 @@ class GStreamerDetectionApp(GStreamerApp):
         '''
         detection_pipeline = INFERENCE_PIPELINE_WRAPPER(self.hef_path)
         user_callback_pipeline = USER_CALLBACK_PIPELINE()
-        display_pipeline = DISPLAY_PIPELINE(video_sink=self.video_sink, sync=self.sync, show_fps=self.show_fps)
+        display_pipeline = DISPLAY_PIPELINE(self.output)
+        tracker_pipeline = (
+            f'hailotracker name=hailo_tracker hailo-objects-blacklist=hailo_landmarks,hailo_depth_mask,hailo_class_mask,hailo_matrix '
+            f'class-id=2 kalman-dist-thr=1 iou-thr=1 init-iou-thr=1 keep-new-frames=1 keep-tracked-frames=10 '
+            f' keep-lost-frames=30 qos=false std-weight-position-box=0.01 std-weight-velocity-box=0.001 !'
+        )
         pipeline_string = (
             f'{source_pipeline} '
             f'{detection_pipeline} ! '
+            f'{tracker_pipeline}'
             f'{user_callback_pipeline} ! '
             f'{display_pipeline}'
         )

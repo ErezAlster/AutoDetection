@@ -65,7 +65,6 @@ def trackCamera(bbox):
     if(not manualX):
         #handle x axix, make the ball in the center of the frame
         bbox_x_center = (xmax + xmin)/2
-        print(bbox_x_center)
         currentXAngle -= handleServoMovment(centerPixel=bbox_x_center, axisPixels=imageWidth, angleView=currentXAngleView)
         setXaxis(currentXAngle)
 
