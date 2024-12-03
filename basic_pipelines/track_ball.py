@@ -16,9 +16,13 @@ def extract_detections(hailo_detections, w: int, h: int) -> Dict[str, np.ndarray
     boxes = np.zeros((n, 4))
 
     for i,detection in enumerate(hailo_detections):
+        detection_tracker = None
+        smo = detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)
+        if(smo is not None and len(smo)>0):
+            detection_tracker = round(smo[0].get_id())
         class_id[i] = detection.get_class_id()
         confidence[i] = detection.get_confidence()
-        tracker_id[i] = round(detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)[0].get_id())
+        tracker_id[i] = detection_tracker
         bbox = detection.get_bbox()
         boxes[i] = [bbox.xmin() * w, bbox.ymin() * h, bbox.xmax() * w, bbox.ymax() * h]
 
@@ -76,7 +80,9 @@ def postprocess_detections(detections: Dict[str, np.ndarray],):
             except Exception as error:
                 print(error)
         if(focus_bbox is not None):
-            #print(datetime.datetime.now(), last_track_id, focus_bbox)
+            print(datetime.datetime.now(), last_track_id, focus_bbox)
             trackCamera(focus_bbox)
-    else:
-        print(datetime.datetime.now(), "no ball")
+#        else:
+#            print(datetime.datetime.now(), "no ball")
+#    else:
+#        print(datetime.datetime.now(), "no ball")
