@@ -1,6 +1,7 @@
 import datetime
 import sys
 import gi
+from reporter import report_status
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib, GObject
 import os
@@ -44,6 +45,7 @@ class app_callback_class:
         if(self.last_second is currentTime.tm_sec):
             self.secondframecounter += 1
         else:
+            report_status("fps", str(self.secondframecounter))
             print("frame rate: ", self.secondframecounter)
             self.secondframecounter = 1
             self.last_second = currentTime.tm_sec
@@ -319,7 +321,7 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
     )'''
  
     inference_wrapper_pipeline = (
-        f'hailotilecropper scale-level=1 internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 '
+        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 '
         f'hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! '
         f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         f'agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '

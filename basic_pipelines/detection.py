@@ -41,21 +41,20 @@ def app_callback(pad, info, user_data):
 
     # Using the user_data to count the number of frames
     user_data.increment()
-    string_to_print = f"Frame count: {user_data.get_count()}\n"
+    #string_to_print = f"Frame count: {user_data.get_count()}\n"
 
     # Get the caps from the pad
-    format, width, height = get_caps_from_pad(pad)
+    #format, width, height = get_caps_from_pad(pad)
 
     # If the user_data.use_frame is set to True, we can get the video frame from the buffer
-    frame = None
-    if user_data.use_frame and format is not None and width is not None and height is not None:
+    #frame = None
+    #if user_data.use_frame and format is not None and width is not None and height is not None:
         # Get video frame
-        frame = get_numpy_from_buffer(buffer, format, width, height)
+    #    frame = get_numpy_from_buffer(buffer, format, width, height)
 
     # Get the detections from the buffer
     roi = hailo.get_roi_from_buffer(buffer)
     extract_detections(roi.get_objects_typed(hailo.HAILO_DETECTION), 1920, 1080)
-    #postprocess_detections(detections)
 
     '''
     # Parse the detections
