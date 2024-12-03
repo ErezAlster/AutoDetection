@@ -1,3 +1,4 @@
+import datetime
 import sys
 import gi
 gi.require_version('Gst', '1.0')
@@ -28,7 +29,10 @@ except ImportError:
 # Additional variables and functions can be added to this class as needed
 
 class app_callback_class:
+
     def __init__(self):
+        self.last_second = time.localtime().tm_sec
+        self.secondframecounter = 0
         self.frame_count = 0
         self.use_frame = False
         self.frame_queue = multiprocessing.Queue(maxsize=3)
@@ -36,7 +40,14 @@ class app_callback_class:
 
     def increment(self):
         self.frame_count += 1
-
+        currentTime = time.localtime()
+        if(self.last_second is currentTime.tm_sec):
+            self.secondframecounter += 1
+        else:
+            print("frame rate: ", self.secondframecounter)
+            self.secondframecounter = 1
+            self.last_second = currentTime.tm_sec
+        
     def get_count(self):
         return self.frame_count
 
@@ -191,15 +202,13 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
         str: A string representing the GStreamer pipeline for the video source.
     """
     source_type = get_source_type(video_source)
-    #libcamerasrc name=src_0 ! video/x-raw, format=RGB, width=1920, height=1080 ! queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoscale name=source_videoscale n-threads=2 ! queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoconvert n-threads=3 name=source_convert qos=false ! video/x-raw, format=RGB, pixel-aspect-ratio=1/1 !  queue name=inference_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! videoscale name=inference_videoscale n-threads=2 qos=false ! queue name=inference_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! video/x-raw, pixel-aspect-ratio=1/1 ! videoconvert name=inference_videoconvert n-threads=2 ! queue name=inference_hailonet_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! hailonet name=inference_hailonet hef-path=/home/erez/git/hailo-rpi5-examples/basic_pipelines/../resources/yolov8m.hef batch-size=2 nms-score-threshold=0.3 nms-iou-threshold=0.45 output-format-type=HAILO_FORMAT_TYPE_FLOAT32 force-writable=true ! queue name=inference_hailofilter_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! hailofilter name=inference_hailofilter so-path=/home/erez/git/hailo-rpi5-examples/basic_pipelines/../resources/libyolo_hailortpp_postprocess.so   qos=false  ! queue name=identity_callback_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! identity name=identity_callback  ! fakesink
-    #libcamerasrc name=src_0 ! video/x-raw, format=RGB, width=1920, height=1080 ! queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoscale name=source_videoscale n-threads=2 ! queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! videoconvert n-threads=3 name=source_convert qos=false ! video/x-raw, format=RGB, pixel-aspect-ratio=1/1 !  hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=2 tiles-along-y-axis=1 overlap-x-axis=0.00 overlap-y-axis=0.00 hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailonet hef-path=resources/starium.hef output-format-type=HAILO_FORMAT_TYPE_FLOAT32 ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! hailofilter so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/libyolo_hailortpp_post.so qos=false ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. agg. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! queue name=identity_callback_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! identity name=identity_callback  ! queue name=hailo_display_hailooverlay_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! hailooverlay name=hailo_display_hailooverlay ! queue name=hailo_display_videoconvert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0  ! videoconvert name=hailo_display_videoconvert n-threads=2 qos=false ! x264enc bitrate=6000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/hailo
     if source_type == 'rpi':
         source_element = (
             f'libcamerasrc name={name} ! '
             f'video/x-raw, format={video_format}, width={video_width}, height={video_height} ! '
-            f'queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
-            f'videoscale name=source_videoscale n-threads=2 ! '
-            f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+            #f'queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+            #f'videoscale name=source_videoscale n-threads=2 ! '
+            #f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         )
     elif source_type == 'usb':
         source_element = (
@@ -310,7 +319,7 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
     )'''
  
     inference_wrapper_pipeline = (
-        f'hailotilecropper scale-level=1 internal-offset=false name=cropper tiles-along-x-axis=1 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 '
+        f'hailotilecropper scale-level=1 internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 '
         f'hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! '
         f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         f'agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '

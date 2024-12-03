@@ -1,6 +1,6 @@
 initialXAxis: 90
-minXAxis: 0
-maxXAxis: 180
+minXAxis: 30
+maxXAxis: 150
 initialYAxis: 90
-minYAxis: 0
-maxYAxis: 180
+minYAxis: 50
+maxYAxis: 120

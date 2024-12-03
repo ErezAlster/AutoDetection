@@ -1,3 +1,4 @@
+import datetime
 from typing import Dict, List
 import numpy as np
 import supervision as sv
@@ -75,5 +76,7 @@ def postprocess_detections(detections: Dict[str, np.ndarray],):
             except Exception as error:
                 print(error)
         if(focus_bbox is not None):
-            print(last_track_id, focus_bbox)
+            #print(datetime.datetime.now(), last_track_id, focus_bbox)
             trackCamera(focus_bbox)
+    else:
+        print(datetime.datetime.now(), "no ball")

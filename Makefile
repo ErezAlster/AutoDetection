@@ -19,6 +19,9 @@ run-rpi:
 copyconf:
 	sudo cp starium.yaml /usr/local/etc
 
+copymediamtx:
+	sudo cp ../starium-device/mediamtx.yml /usr/local/etc/mediamtx.yml
+
 stream-video:
 	sudo modprobe v4l2loopback devices=2 exclusive_caps=1,1 video_nr=10,11 card_label="Raw Video","Annotated Camera"
 	rpicam-vid -t 0 --camera 0 --f`ramerate 30 --nopreview --codec yuv420 --width 1280 --height 720 --exposure sport --metering average --inline --listen -o - | \
