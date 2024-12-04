@@ -122,6 +122,3 @@ if is_sourced; then
 else
     echo "This script needs to be sourced to correctly set up the environment. Please run '. $(basename "$0")' instead of executing it."
 fi
-
-
-make run
