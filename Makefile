@@ -14,7 +14,7 @@ run-rtsp:
 	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/starium.hef -o rtsp
 
 run-rpi:
-	python basic_pipelines/detection.py -i rpi --hef-path resources/starium.hef
+	python basic_pipelines/detection.py -i rpi --hef-path resources/starium.hef -o rtsp
 
 copyconf:
 	sudo cp starium.yaml /usr/local/etc

@@ -41,24 +41,34 @@ def handleServoMovment(centerPixel, axisPixels, angleView):
     mXAngleChange = 90 + (angleView/2)
     movetopixel =  centerPixel - (axisPixels / 2)
     m = (imageWidth/2) / (mXAngleChange-90)
-    return movetopixel/(m*60)
+    return movetopixel/(m*30)
 
 def setXaxis(angle):
+    global currentXAngle
+
     conf = readGlobalConfiguration()
     if(angle<conf["minXAxis"]):
         angle = conf["minXAxis"]
     elif (angle>conf["maxXAxis"]):
         angle = conf["maxXAxis"]
+    currentXAngle = angle
+
     pwm.setRotationAngle(0, angle)
 
 def setYaxis(angle):
+    global currentYAngle
+
     conf = readGlobalConfiguration()
+    print("Y", conf["minYAxis"], conf["maxYAxis"], angle)
 
     if(angle<conf["minYAxis"]):
         angle = conf["minYAxis"]
     elif (angle>conf["maxYAxis"]):
         angle = conf["maxYAxis"]
 
+    print("ANGLE", angle)
+
+    currentYAngle = angle
     pwm.setRotationAngle(1, angle)
 
 setXaxis(currentXAngle)

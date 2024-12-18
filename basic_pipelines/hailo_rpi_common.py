@@ -202,20 +202,28 @@ def SOURCE_PIPELINE(video_source, video_format='RGB', video_width=640, video_hei
 
     Returns:
         str: A string representing the GStreamer pipeline for the video source.
-    """
+    
+
+gst-launch-1.0 -vvv v4l2src ! video/x-raw,width=1920,height=1080,framerate=30/1,format=RGB ! \
+  videoconvert ! \
+  x264enc bitrate=5000 ! \
+  h264parse ! \
+  flvmux streamable=true name=mux ! rtmpsink location="rtsp://localhost:8554/starium"
+"""
+
     source_type = get_source_type(video_source)
     if source_type == 'rpi':
         source_element = (
             f'libcamerasrc name={name} ! '
-            f'video/x-raw, format={video_format}, width={video_width}, height={video_height} ! '
+            f'video/x-raw, format={video_format}, width={video_width}, height={video_height}, framerate=60/1 ! '
             #f'queue name=source_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
-            #f'videoscale name=source_videoscale n-threads=2 ! '
+            #f'videoscale name=source_videoscale n-threads=2 ! video/x-raw,width=1920,height=1080 !'
             #f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         )
     elif source_type == 'usb':
         source_element = (
-            f'v4l2src device={video_source} name={name} ! '
-            'video/x-raw, width=1920, height=1080, framerates=30 ! '
+            f'v4l2src name={name} ! '
+            'video/x-raw, width=1920, height=1080 ! '
         )
     else:
         source_element = (
@@ -321,7 +329,7 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
     )'''
  
     inference_wrapper_pipeline = (
-        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 '
+        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=2 overlap-x-axis=0.08 overlap-y-axis=0.08 '
         f'hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! '
         f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         f'agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
@@ -362,7 +370,7 @@ def DISPLAY_PIPELINE(output=None, name='hailo_display'):
         if(output =="rtsp"):
             display_pipeline = (
                 f'{display_pipeline}'
-                f'x264enc bitrate=6000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/hailo'
+                f'x264enc bitrate=60000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/starium'
             )
     else:
         display_pipeline = "fakesink"

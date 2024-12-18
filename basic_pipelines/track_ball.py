@@ -45,6 +45,7 @@ def sortByDistanceFromXCenter(detection):
 
 def postprocess_detections(detections: Dict[str, np.ndarray],):
     global last_track_id
+    last_track_id = None
 
     if detections["num_detections"]>0:
         sv_detections = sv.Detections(
@@ -70,7 +71,7 @@ def postprocess_detections(detections: Dict[str, np.ndarray],):
         #Find best match object to center at incase not object were found before
         if(last_track_id is None):
 
-            potentials_detections = [detection for detection in sv_detections if (detection[3] == CLASS_ID_TO_TRACK)]
+            potentials_detections = [detection for detection in sv_detections if (detection[3] == CLASS_ID_TO_TRACK and detection[0][1]<(1080/3))]
             try:
                 potentials_detections.sort(key=sortByDistanceFromXCenter)
                 if(len(potentials_detections)>0):
@@ -80,7 +81,7 @@ def postprocess_detections(detections: Dict[str, np.ndarray],):
             except Exception as error:
                 print(error)
         if(focus_bbox is not None):
-            print(datetime.datetime.now(), last_track_id, focus_bbox)
+            #print(datetime.datetime.now(), last_track_id, focus_bbox)
             trackCamera(focus_bbox)
 #        else:
 #            print(datetime.datetime.now(), "no ball")
