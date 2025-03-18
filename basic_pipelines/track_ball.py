@@ -3,7 +3,7 @@ from typing import Dict, List
 import numpy as np
 import supervision as sv
 import hailo
-from track import trackCamera
+#from track import trackCamera
 
 CLASS_ID_TO_TRACK = 2
 last_track_id = None
@@ -80,9 +80,9 @@ def postprocess_detections(detections: Dict[str, np.ndarray],):
 
             except Exception as error:
                 print(error)
-        if(focus_bbox is not None):
+        #if(focus_bbox is not None):
             #print(datetime.datetime.now(), last_track_id, focus_bbox)
-            trackCamera(focus_bbox)
+            #trackCamera(focus_bbox)
 #        else:
 #            print(datetime.datetime.now(), "no ball")
 #    else:

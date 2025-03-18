@@ -138,7 +138,7 @@ def get_default_parser():
         Defaults to example video resources/detection0.mp4"
     )
     parser.add_argument("--use-frame", "-u", action="store_true", help="Use frame from the callback function")
-    parser.add_argument("--output", "-o", default=None, choices=['rtsp'], help="output video to")
+    parser.add_argument("--output", "-o", default=None, type=str, help="output video to")
     parser.add_argument(
             "--arch",
             default=None,
@@ -170,7 +170,10 @@ def get_source_type(input_source):
         if input_source.startswith("rpi"):
             return 'rpi'
         else:
-            return 'file'
+            if input_source.startswith("rtsp"):
+                return 'rtsp'
+            else:
+                return 'file'
 
 def QUEUE(name, max_size_buffers=3, max_size_bytes=0, max_size_time=0, leaky='no'):
     """
@@ -220,10 +223,17 @@ gst-launch-1.0 -vvv v4l2src ! video/x-raw,width=1920,height=1080,framerate=30/1,
             #f'videoscale name=source_videoscale n-threads=2 ! video/x-raw,width=1920,height=1080 !'
             #f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         )
+
+#gst-launch-1.0 -v rtspsrc location=rtsp://192.168.68.142:8554/starium latency=0 ! decodebin name=dec     dec. ! videoconvert ! videoscale !     compositor name=mixer sink_1::xpos=1200 sink_1::ypos=50         sink_1::width=150 sink_1::height=100 ! videoconvert ! fakesink
+
     elif source_type == 'usb':
         source_element = (
             f'v4l2src name={name} ! '
             'video/x-raw, width=1920, height=1080 ! '
+        )
+    elif source_type == 'rtsp':
+         source_element = (
+            f'rtspsrc location="{video_source}" name={name}  latency=0 ! decodebin name=dec dec. ! '
         )
     else:
         source_element = (
@@ -329,7 +339,7 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
     )'''
  
     inference_wrapper_pipeline = (
-        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=3 tiles-along-y-axis=2 overlap-x-axis=0.08 overlap-y-axis=0.08 '
+        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=1 tiles-along-y-axis=1 overlap-x-axis=0.02 overlap-y-axis=0.082 '
         f'hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! '
         f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         f'agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
@@ -366,11 +376,10 @@ def DISPLAY_PIPELINE(output=None, name='hailo_display'):
             f'{QUEUE(name=f"{name}_videoconvert_q")} ! '
             f'videoconvert name={name}_videoconvert n-threads=2 qos=false ! '
         )
-
-        if(output =="rtsp"):
+        if(output.startswith("rtsp")):
             display_pipeline = (
                 f'{display_pipeline}'
-                f'x264enc bitrate=60000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location=rtsp://localhost:8554/starium'
+                f'x264enc bitrate=1000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location={output}'
             )
     else:
         display_pipeline = "fakesink"

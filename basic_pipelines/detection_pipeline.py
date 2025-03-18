@@ -98,8 +98,8 @@ class GStreamerDetectionApp(GStreamerApp):
         )
         pipeline_string = (
             f'{source_pipeline} '
-            #f'{detection_pipeline} ! '
-            #f'{tracker_pipeline}'
+            f'{detection_pipeline} ! '
+            f'{tracker_pipeline}'
             #f'{user_callback_pipeline} ! '
             f'{display_pipeline}'
         )

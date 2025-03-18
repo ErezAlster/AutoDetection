@@ -4,8 +4,11 @@ c-venv:
 venv: 
 	source .venv/bin/activate
 
+streamsds:
+	ffmpeg -re -stream_loop -1 -i test4.mp4 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 6000k -c:a aac -b:a 128k -f rtsp rtsp://192.168.68.142:8554/starium
+
 run-test:
-	python basic_pipelines/detection.py -i resources/test.mp4 --hef-path resources/starium.hef -o rtsp
+	python basic_pipelines/detection.py -i rtsp://192.168.68.142:8554/starium --hef-path resources/yolov8s_h8l.hef -o rtsp://192.168.68.142:8554/hailo
 
 run:
 	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/starium.hef
@@ -29,6 +32,8 @@ stream-video:
 	
 install:
 	sudo apt-get install v4l2loopback-dkms
+	sudo apt install gstreamer1.0-rtsp
+	sudo apt-get install gstreamer1.0-plugins-ugly
 
 inference-server:
 	gunicorn --config gunicorn_config.py wsgi:app
