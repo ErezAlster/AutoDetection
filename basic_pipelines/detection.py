@@ -54,8 +54,8 @@ def app_callback(pad, info, user_data):
 
     # Get the detections from the buffer
     roi = hailo.get_roi_from_buffer(buffer)
-    extract_detections(roi.get_objects_typed(hailo.HAILO_DETECTION), 1920, 1080)
-
+    detections_raw = roi.get_objects_typed(hailo.HAILO_DETECTION)
+    extract_detections(detections_raw, 1920, 1080)
     '''
     # Parse the detections
     detection_count = 0

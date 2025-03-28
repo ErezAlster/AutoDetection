@@ -45,7 +45,7 @@ class app_callback_class:
         if(self.last_second is currentTime.tm_sec):
             self.secondframecounter += 1
         else:
-            report_status("fps", str(self.secondframecounter))
+            #report_status("fps", str(self.secondframecounter))
             print("frame rate: ", self.secondframecounter)
             self.secondframecounter = 1
             self.last_second = currentTime.tm_sec
@@ -330,7 +330,7 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
 
     inference_wrapper_pipeline = (
         f"hailotilecropper internal-offset=true name=cropper "
-        f"tiles-along-x-axis=2 tiles-along-y-axis=2 overlap-x-axis=0.08 overlap-y-axis=0.08 "
+        f"tiles-along-x-axis=2 tiles-along-y-axis=1 overlap-x-axis=0.08 overlap-y-axis=0.08 "
         f"hailotileaggregator flatten-detections=true iou-threshold=0.1 name=agg "
         f"cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! agg. "
         f"cropper. ! {inner_pipeline} ! agg. "
@@ -339,7 +339,7 @@ def INFERENCE_PIPELINE_WRAPPER(hef_path, bypass_max_size_buffers=20, name='infer
     )'''
  
     inference_wrapper_pipeline = (
-        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=1 tiles-along-y-axis=1 overlap-x-axis=0.02 overlap-y-axis=0.082 '
+        f'hailotilecropper internal-offset=false name=cropper tiles-along-x-axis=1 tiles-along-y-axis=1 overlap-x-axis=0.02 overlap-y-axis=0.08 '
         f'hailotileaggregator flatten-detections=true iou-threshold=0.01 name=agg cropper. ! '
         f'queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
         f'agg. cropper. ! queue leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
@@ -379,7 +379,7 @@ def DISPLAY_PIPELINE(output=None, name='hailo_display'):
         if(output.startswith("rtsp")):
             display_pipeline = (
                 f'{display_pipeline}'
-                f'x264enc bitrate=1000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location={output}'
+                f'x264enc bitrate=6000 tune=zerolatency speed-preset=ultrafast key-int-max=30 ! rtspclientsink location={output}'
             )
     else:
         display_pipeline = "fakesink"

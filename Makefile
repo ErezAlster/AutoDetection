@@ -8,7 +8,7 @@ streamsds:
 	ffmpeg -re -stream_loop -1 -i test4.mp4 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 6000k -c:a aac -b:a 128k -f rtsp rtsp://192.168.68.142:8554/starium
 
 run-test:
-	python basic_pipelines/detection.py -i rtsp://192.168.68.142:8554/starium --hef-path resources/yolov8s_h8l.hef -o rtsp://192.168.68.142:8554/hailo
+	python basic_pipelines/detection.py -i rtsp://192.168.68.142:8554/starium --hef-path resources/starium.hef -o rtsp://192.168.68.142:8554/hailo
 
 run:
 	python basic_pipelines/detection.py -i /dev/video10 --hef-path resources/starium.hef
